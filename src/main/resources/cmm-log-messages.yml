@@ -1,0 +1,11 @@
+logging:
+  messages:
+    start:
+      code: "I000001"
+      text: "[{0}]処理開始1: input={1}"
+    complete:
+      code: "I000002"
+      text: "[{0}]処理完了: result={1}"
+    error:
+      code: "E000017"
+      text: "[{0}]処理異常終了: {1}"

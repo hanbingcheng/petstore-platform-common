@@ -1,0 +1,168 @@
+plugins {
+    id 'java-library'
+    id 'groovy'
+    id 'maven-publish'
+    id 'com.diffplug.spotless' version '7.0.2'       // コードフォーマット
+    id 'com.github.spotbugs' version '6.1.7'          // 静的解析（潜在バグ検出）
+    id 'jacoco'                                        // カバレッジレポート
+}
+
+group = 'com.example.petstore'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = '25'
+    targetCompatibility = '25'
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+
+publishing {
+    publications {
+        // 1. まず名前と型を指定して器を作る（これだけならIDEは迷わない）
+        create('mavenJava', MavenPublication)
+    }
+}
+
+// 作成したパブリケーションを名前で指定して、中身を個別に設定する
+publishing.publications.named('mavenJava', MavenPublication).configure {
+    from components.java
+}
+
+dependencies {
+    // ===== Spring Boot =====
+    implementation platform('org.springframework.boot:spring-boot-dependencies:4.1.0')
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-aspectj'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // ===== Lombok =====
+    compileOnly 'org.projectlombok:lombok:1.18.38'
+    annotationProcessor 'org.projectlombok:lombok:1.18.38'
+
+    // ===== MapStruct =====
+    implementation 'org.mapstruct:mapstruct:1.6.3'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+
+    // ===== バリデーション =====
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // ===== Groovy（テスト用） =====
+    testImplementation 'org.apache.groovy:groovy:5.0.7'
+
+    // ===== テスト =====
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.spockframework:spock-core:2.4-groovy-5.0'
+
+    // ===== SpotBugs Annotation（オプション） =====
+    compileOnly 'com.github.spotbugs:spotbugs-annotations:4.8.6'
+}
+
+// ========================================
+// Spotless: コードフォーマット自動統一
+// ========================================
+spotless {
+    java {
+        googleJavaFormat('1.28.0')             // Google Java Format
+        removeUnusedImports()                  // 未使用import削除
+        endWithNewline()                       // 最終行を改行
+        trimTrailingWhitespace()               // 行末空白を除去
+    }
+    groovy {
+        importOrder('groovy', 'java', 'javax', 'org', 'com', '')
+        greclipse()
+        endWithNewline()
+        trimTrailingWhitespace()
+    }
+    format 'misc', {
+        target '*.gradle', '*.md', '.gitignore'
+        endWithNewline()
+        trimTrailingWhitespace()
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java', 'src/main/groovy']
+        }
+    }
+}
+
+// ========================================
+// SpotBugs: 静的解析（潜在バグ検出）
+// ========================================
+spotbugs {
+    ignoreFailures = false
+    excludeFilter = file("$rootDir/config/spotbugs/spotbugs-exclude.xml")
+}
+
+tasks.withType(project.buildscript.classLoader.loadClass('com.github.spotbugs.snom.SpotBugsTask') as Class).configureEach {
+    reports {
+        html { enabled = true }
+        xml { enabled = false }
+    }
+}
+
+spotbugsTest {
+    enabled = false  // テストコードはSpotBugs対象外
+}
+
+// ========================================
+// JaCoCo: カバレッジレポート
+// ========================================
+jacoco {
+    toolVersion = '0.8.13'
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = false
+        csv.required = false
+        html.outputLocation = layout.buildDirectory.dir('jacocoHtml')
+    }
+    dependsOn test // tests are required to run before generating the report
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = 'CLASS'
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.80  // 80%以上
+            }
+            excludes = [
+                'com.example.petstore.**.api.*',
+                'com.example.petstore.**.model.*'
+            ]
+        }
+    }
+}
+
+// テスト後に自動でカバレッジレポート生成
+tasks.named('test') {
+    useJUnitPlatform()
+    testLogging {
+        events = ['passed', 'skipped', 'failed']
+        exceptionFormat = 'full'
+    }
+}
+
+// ビルド時に自動でフォーマット→静的解析→テストを実行
+tasks.named('build') {
+    dependsOn spotlessApply
+}
+tasks.named('check') {
+    dependsOn spotbugsMain
+}
