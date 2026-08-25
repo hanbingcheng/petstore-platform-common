@@ -39,6 +39,9 @@ jobs:
           fi
           echo "Version check passed: $GRADLE_VERSION"
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Publish to GitHub Packages
         run: ./gradlew publish -Pversion=${{ env.VERSION }}
         env:
