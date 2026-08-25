@@ -1,0 +1,46 @@
+name: Publish common to GitHub Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: "25"
+          distribution: "corretto"
+
+      - name: Extract version from tag
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+      - name: Check build.gradle version matches tag
+        run: |
+          GRADLE_VERSION=$(grep -oP "^version\s*=\s*'\K[^']+" build.gradle)
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "build.gradle version: $GRADLE_VERSION"
+          echo "tag version: $TAG_VERSION"
+          if [ -z "$GRADLE_VERSION" ]; then
+            echo "::error::Could not extract version from build.gradle"
+            exit 1
+          fi
+          if [ "$GRADLE_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::build.gradle version ($GRADLE_VERSION) does not match tag version ($TAG_VERSION)"
+            exit 1
+          fi
+          echo "Version check passed: $GRADLE_VERSION"
+
+      - name: Publish to GitHub Packages
+        run: ./gradlew publish -Pversion=${{ env.VERSION }}
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
