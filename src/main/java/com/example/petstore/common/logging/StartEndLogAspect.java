@@ -25,14 +25,14 @@ public class StartEndLogAspect {
     MethodSignature signature = (MethodSignature) joinPoint.getSignature();
     String input = buildInputLog(signature.getParameterNames(), joinPoint.getArgs());
 
-    petStoreLogger.info("start", serviceName, input);
+    petStoreLogger.info("start", input);
 
     try {
       Object result = joinPoint.proceed();
-      petStoreLogger.info("complete", serviceName, String.valueOf(result));
+      petStoreLogger.info("complete", String.valueOf(result));
       return result;
     } catch (Exception e) {
-      petStoreLogger.error("error", e, serviceName, e.getMessage());
+      petStoreLogger.error("error", e, e.getMessage());
       throw e;
     }
   }
