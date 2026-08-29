@@ -1,6 +1,5 @@
 package com.example.petstore.common.client;
 
-
 import com.example.petstore.common.filter.RequestIdFilter;
 import java.io.IOException;
 import org.slf4j.MDC;
